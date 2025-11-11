@@ -1,0 +1,6 @@
+# dune init proj mini_proj
+# OCAMLPARAM: unset
+# Shared cache: disabled
+# Shared cache location: /home/112401008/.cache/dune/db
+# Workspace root: /home/112401008/foundationsofcomp/hack_proj/mini_proj
+# Auto-detected concurrency: 6
