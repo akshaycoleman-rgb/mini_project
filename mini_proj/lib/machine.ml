@@ -1,96 +1,83 @@
-module Jump = struct 
-match j	with
-| JGT -> [0;0;1]
-
-open Ast
-let jump (j : Instruction.jump) : encoding =
-match j with
-| JGT -> [0;0;1]
-| JGQ -> [0;1;0]
-| JGE -> [0;1;1]
-| JLT -> [1;0;0]
-| JNE -> [1;0;1]
-| JLE -> [1;1;0]
-| JMP -> [1;1;1]
-
-let encode (oj : Instruction.jump option) : encoding =
-match oj with
-| None -> zeros
-| Some j -> jump j
-end
-
-module Destination = struct 
-let reg (r : ast.reg.t) : encoding = 
-match r with
-| reg.M -> [0;0;1]
-| reg.D -> [0;1;0]
-| reg.A -> [1;0;0]
-
-let encode (rs : ast.reg.t list) : encoding = 
-	let comb (s1 s2 : encoding) =
-		 ma Added Nov 4, 2025 tch s1,s2 with
-		| streamOf n1,streamOf n2 -> streamOf (N.lor n1 n2)
-		
-module Computation = struct 
-
-let constant (c : instruction.const) : encoding = 
-match c with
-| Zero -> [0;1;0;1;0;1;0]
-| One -> [0;1;1;1;1;1;1]
-| MinusOne -> [0;1;1;1;0;1;0]
-
-module Unary = struct 
-
-let defaultRegEnc (r : ast.reg.t) : stream 5 = 
-match r with 
-| reg.D -> [0;0;0;1;1]
-| reg.A -> [0;1;1;0;0]
-| reg.M -> [1;1;1;0;0]
+let encode_dest (d : dest) =
+  let a = if List.mem A d then '1' else '0' in
+  let d = if List.mem D d then '1' else '0' in
+  let m = if List.mem M d then '1' else '0' in
+  String.make 1 a ^ String.make 1 d ^ String.make 1 m
 
 
-let defaultUnary (o : instruction.unary) : stream 2 =
-match o with
-| ID -> [0;0]
-| BNeg -> [0;1]
- Added Nov 4, 2025 | UMinus -> [1;1]
-| Pred -> [1;0]
-| Succ -> [1;1]
+let encode_jump = function
+  | NullJump -> "000"
+  | JGT -> "001"
+  | JEQ -> "010"
+  | JGE -> "011"
+  | JLT -> "100"
+  | JNE -> "101"
+  | JLE -> "110"
+  | JMP -> "111"
 
-let succ (r : ast.reg.t) : encoding =
-match r with
-| reg.D -> [0;0;1;1;1;1;1]
-| reg.A -> [0;1;1;0;1;1;1]
-| reg.M -> [1;1;1;0;1;1;1]
 
-let encode (o : instruction.unary)(r : ast.reg.t) : encoding = 
-match o with
-| Succ -> succ r
-| _ -> defaultUnary o ++ defaultRegEnc r
-end 
+let encode_const = function
+  | Zero -> "0101010"
+  | One -> "0111111"
+  | MinusOne -> "0111010"
 
-module Binary = struct 
+let encode_unary (op, r) =
+  match op, r with
+  | Identity, D -> "0001100"
+  | Identity, A -> "0110000"
+  | Identity, M -> "1110000"
 
-let encode (o : instruction.binary)(r : ast.reg.AOrM) : encoding = 
-	let ambit = 
-		match r:ast.reg.t with
-		| reg.A -> 0
-		| 
-let opbits = 
-match o with
-| Add -> [0;0;0;0;1;0]
-| Sub -> [0;1;0;0;1;1]
-| SubFrom -> [0;0;0;1;1;1]
-| BAnd -> [0;0;0;0;0;0]
-| BOr -> [0;1;0;1;0;1]
- end 
+  | Neg, D -> "0001111"
+  | Neg, A -> "0110011"
+  | Neg, M -> "1110011"
 
-let adress (a : N) : encoding = 
-match i with
-| ast.instruction.At a-> 0::adress a
-| ast.instruction.C regs out oj ->
-	let des = destination.encode regs in
-	let com = computation.encode out in 
-	let jmp = jump.encode oj in
-	
-module Assemble
+  | BNot, D -> "0001101"
+  | BNot, A -> "0110001"
+  | BNot, M -> "1110001"
 
+  | Succ, D -> "0011111"
+  | Succ, A -> "0110111"
+  | Succ, M -> "1110111"
+
+  | Pred, D -> "0001110"
+  | Pred, A -> "0110010"
+  | Pred, M -> "1110010"
+
+  | _ -> failwith "Unsupported unary comp"
+
+let encode_binary = function
+  | Add, D -> "0000010"   (* D + register → but your AST only carries one register *)
+  | Sub, D -> "0010011"   (* D - register *)
+  | SubFrom, D -> "0000111" (* register - D *)
+  | BAnd, D -> "0000000"
+  | BOr, D -> "0010101"
+  | _ -> failwith "Unsupported binary comp"
+
+let encode_comp = function
+  | Const c -> encode_const c
+  | UnaryOp u -> encode_unary u
+  | BinaryOp b -> encode_binary b
+
+
+let encode_A n =
+  let bits = Printf.sprintf "%015b" n in
+  "0" ^ bits
+
+let encode_C d c j =
+  "111" ^ encode_comp c ^ encode_dest d ^ encode_jump j
+
+
+let encode_inst (tbl : 'v table) (inst : 'v inst) : string =
+  match inst with
+  | Ldef _ ->
+      ""      (* labels can't emit code *)
+
+  | At n ->
+      encode_A n
+
+  | Ainst sym ->
+      let addr = Hashtbl.find tbl sym in
+      encode_A addr
+
+  | Cinst (d, c, j) ->
+      encode_C d c j
