@@ -1,4 +1,4 @@
-open String
+
 
 let trim s =
   let len = length s in
@@ -20,7 +20,6 @@ let parse_reg = function
   | "A" -> A
   | "D" -> D
   | "M" -> M
-  | _ -> failwith "Invalid register"
   
 let parse_dest s =
   let rec chars i acc =

@@ -43,15 +43,13 @@ let encode_unary (op, r) =
   | Pred, A -> "0110010"
   | Pred, M -> "1110010"
 
-  | _ -> failwith "Unsupported unary comp"
 
 let encode_binary = function
-  | Add, D -> "0000010"   (* D + register → but your AST only carries one register *)
-  | Sub, D -> "0010011"   (* D - register *)
-  | SubFrom, D -> "0000111" (* register - D *)
+  | Add, D -> "0000010"   
+  | Sub, D -> "0010011"  
+  | SubFrom, D -> "0000111" 
   | BAnd, D -> "0000000"
   | BOr, D -> "0010101"
-  | _ -> failwith "Unsupported binary comp"
 
 let encode_comp = function
   | Const c -> encode_const c
@@ -69,11 +67,9 @@ let encode_C d c j =
 
 let encode_inst (tbl : 'v table) (inst : 'v inst) : string =
   match inst with
-  | Ldef _ ->
-      ""      (* labels can't emit code *)
+  | Ldef _ ->""(*nothing emitted*)
 
-  | At n ->
-      encode_A n
+  | At n -> encode_A n
 
   | Ainst sym ->
       let addr = Hashtbl.find tbl sym in
